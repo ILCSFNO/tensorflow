@@ -1349,6 +1349,7 @@ void BuildGetTupleElementsForTupleResults(mlir::Operation* op, xla::XlaOp tuple,
 
 namespace mlir {
 
+// (-- LINT.IfChange(stablehlo_optimization_path) --)
 namespace stablehlo {
 namespace {
 
@@ -1899,9 +1900,9 @@ LogicalResult ExportXlaOp(CaseOp op, OpLoweringContext ctx) {
     if (failed(GetXlaOps(op, implicit_operands, ctx, args))) return failure();
 
     llvm::SmallVector<std::optional<xla::OpSharding>> arg_shardings;
-    if (!ret_shardings.empty()) {
-      // We only add arg shardings if there are result shardings, otherwise it
-      // means sharding propagation hasn't been done yet.
+    if (!ret_shardings.empty() || op->getNumResults() == 0) {
+      // We only add arg shardings if there are result shardings or no results,
+      // otherwise it means sharding propagation hasn't been done yet.
       arg_shardings = GetXlaOpShardings(args);
     }
 
@@ -2906,10 +2907,14 @@ LogicalResult ExportXlaOp(ReduceWindowOp op, OpLoweringContext ctx) {
     return failure();
   }
 
+  constexpr ArrayRef<int64_t> kEmptyArray = {};
+
   xla::XlaOp result = xla::ReduceWindowWithGeneralPadding(
       operands, init_values, body, op.getWindowDimensions(),
-      op.getWindowStrides().value(), op.getBaseDilations().value(),
-      op.getWindowDilations().value(), Convert_padding(op.getPadding()));
+      op.getWindowStrides().value_or(kEmptyArray),
+      op.getBaseDilations().value_or(kEmptyArray),
+      op.getWindowDilations().value_or(kEmptyArray),
+      Convert_padding(op.getPadding()));
 
   if (op.getNumResults() == 1) {
     value_map[op.getResult(0)] = result;
@@ -3000,10 +3005,12 @@ LogicalResult ExportXlaOp(SelectAndScatterOp op, OpLoweringContext ctx) {
   if (failed(GetXlaOp(op.getInitValue(), value_map, &init_value, op)))
     return failure();
 
+  constexpr ArrayRef<int64_t> kEmptyArray = {};
+
   value_map[op] = xla::SelectAndScatterWithGeneralPadding(
-      operand, select, op.getWindowDimensions().value(),
-      op.getWindowStrides().value(), Convert_padding(op.getPadding()), source,
-      init_value, scatter);
+      operand, select, op.getWindowDimensions().value_or(kEmptyArray),
+      op.getWindowStrides().value_or(kEmptyArray),
+      Convert_padding(op.getPadding()), source, init_value, scatter);
   return success();
 }
 
@@ -3059,9 +3066,12 @@ LogicalResult ExportXlaOp(UniformDequantizeOp op, OpLoweringContext ctx) {
 
 }  // namespace
 }  // namespace stablehlo
+// (-- LINT.ThenChange(:mhlo_optimization_path) --)
 
+// (-- LINT.IfChange(mhlo_optimization_path) --)
 namespace mhlo {
 namespace {
+
 LogicalResult ExportXlaOp(CollectiveBroadcastOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
   xla::XlaOp operand;
@@ -3793,9 +3803,9 @@ LogicalResult ExportXlaOp(IfOp op, OpLoweringContext ctx) {
 
   llvm::SmallVector<std::optional<xla::OpSharding>> true_arg_shardings,
       false_arg_shardings;
-  if (!ret_shardings.empty()) {
-    // We only add arg shardings if there are result shardings, otherwise it
-    // means sharding propagation hasn't been done yet.
+  if (!ret_shardings.empty() || op->getNumResults() == 0) {
+    // We only add arg shardings if there are result shardings or no results,
+    // otherwise it means sharding propagation hasn't been done yet.
     true_arg_shardings = GetXlaOpShardings(true_args);
     false_arg_shardings = GetXlaOpShardings(false_args);
   }
@@ -5198,6 +5208,8 @@ LogicalResult ExportXlaOp(MinimumBroadcastShapesOp op, OpLoweringContext ctx) {
 
 }  // namespace
 }  // namespace mhlo
+// (-- LINT.ThenChange(:stablehlo_optimization_path) --)
+
 }  // namespace mlir
 
 #include "xla/hlo/translate/mhlo_to_hlo/hlo_op_writer.inc"
@@ -6180,7 +6192,6 @@ LogicalResult ConvertToHloModule::LowerBasicBlockAsFunction(
     return failure();
   }
   computation = computation_or.value();
-  // LLVM_DEBUG(llvm::dbgs() << "Created: " << result->name() << "\n");
   return success();
 }
 
