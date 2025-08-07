@@ -17,9 +17,12 @@ limitations under the License.
 #define XLA_SERVICE_SHARDING_CONFIG_H_
 
 #include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "xla/hlo/ir/hlo_sharding.h"
+#include "xla/printer.h"
 #include "xla/xla.pb.h"
 #include "xla/xla_data.pb.h"
 
@@ -33,6 +36,40 @@ struct NodeShardingConfig {
   bool operator==(const NodeShardingConfig& other) const {
     return sharding == other.sharding && nodes == other.nodes;
   }
+  static std::string Indent(int level) { return std::string(level * 2, ' '); }
+  void Print(Printer* printer, int indent = 0) const {
+    std::string i0 = Indent(indent);
+    printer->Append(i0);
+    printer->Append("NodeShardingConfig {\n");
+
+    std::string i1 = Indent(indent + 1);
+    printer->Append(i1);
+    printer->Append("sharding: ");
+    if (sharding.has_value()) {
+      printer->Append(sharding->ToString());
+      printer->Append("\n");
+    } else {
+      printer->Append("nullopt\n");
+    }
+
+    if (!nodes.empty()) {
+      printer->Append(i1);
+      printer->Append("nodes: [\n");
+      for (const auto& node : nodes) {
+        node.Print(printer, indent + 2);
+      }
+      printer->Append(i1);
+      printer->Append("]\n");
+    }
+    printer->Append(i0);
+    printer->Append("}\n");
+  }
+
+  std::string ToString() const {
+    StringPrinter printer;
+    Print(&printer);
+    return std::move(printer).ToString();
+  }
 };
 
 // Program's sharding configuration.
@@ -43,6 +80,25 @@ struct ShardingConfig {
   }
   static ShardingConfig FromProto(const ShardingConfigProto& proto);
   static ShardingConfigProto ToProto(const ShardingConfig& config);
+
+  void Print(Printer* printer, int indent = 0) const {
+    std::string i0 = NodeShardingConfig::Indent(indent);
+    printer->Append(i0);
+    printer->Append("ShardingConfig {\n");
+    if (!nodes.empty()) {
+      for (const auto& node : nodes) {
+        node.Print(printer, indent + 1);
+      }
+    }
+    printer->Append(i0);
+    printer->Append("}\n");
+  }
+
+  std::string ToString() const {
+    StringPrinter printer;
+    Print(&printer);
+    return std::move(printer).ToString();
+  }
 };
 
 }  // namespace xla
