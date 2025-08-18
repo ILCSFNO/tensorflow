@@ -485,7 +485,9 @@ cc_library(
     srcs = ["grpc_host_buffer.cc"],
     hdrs = ["grpc_host_buffer.h"],
     deps = [
+        ":global_flags",
         ":host_buffer",
+        "//xla/pjrt:semaphore",
         "//xla/pjrt/distributed:util",
         "//xla/python/ifrt",
         "//xla/python/ifrt_proxy/common:grpc_ifrt_service_cc_grpc_proto",
@@ -604,14 +606,13 @@ ifrt_proxy_cc_test(
         "//xla/python/ifrt_proxy/common:types",
         "//xla/tsl/concurrency:ref_count",
         "//xla/tsl/platform:statusor",
-        "//xla/tsl/util/proto:proto_matchers",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
         "@llvm-project//llvm:Support",
         "@local_tsl//tsl/platform:protobuf",
+        "@local_tsl//tsl/platform:status_matchers",
     ],
 )
 
