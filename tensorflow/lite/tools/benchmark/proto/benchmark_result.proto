@@ -1,0 +1,61 @@
+edition = "2023";
+
+package tflite.tools.benchmark;
+
+option java_multiple_files = true;
+option java_package = "tflite.tools.benchmark";
+
+// Next ID: 11
+message LatencyMetrics {
+  // Note all fields defined here refers to wall time by default.
+  float avg_ms = 1;
+  float min_ms = 2;
+  float max_ms = 3;
+  float stddev_ms = 4;
+  float median_ms = 5;
+  float p5_ms = 6;
+  float p95_ms = 7;
+  float init_ms = 8;
+  float first_inference_ms = 9;
+  float average_warm_up_ms = 10;
+}
+
+// Next ID: 5
+message MemoryMetrics {
+  // The initial footprint of the model in kilobytes. This is the footprint of
+  // the model before any inference is run.
+  int64 initial_footprint_kb = 1;
+
+  // The overall footprint of the model in kilobytes. This is the footprint of
+  // the model after all the subgraphs have been run at least once.
+  int64 overall_footprint_kb = 2;
+
+  // Peak memory usage (in megabytes).
+  float peak_mem_mb = 3;
+
+  // Model throughput in megabytes per second. This is the average throughput
+  // of the model over all the inferences.
+  float model_throughput_in_mb_per_sec = 4;
+}
+
+// Next ID: 4
+message MiscMetrics {
+  float model_size_mb = 1;
+  int32 num_runs = 2;
+  int32 num_warmup_runs = 3;
+}
+
+// Next ID: 6
+message BenchmarkResult {
+  enum Status {
+    UNKNOWN = 0;
+    SUCCESS = 1;
+    FAILURE = 2;
+  }
+  Status status = 1;
+  // The name representing the configuration of the benchmark run.
+  string name = 2;
+  LatencyMetrics latency_metrics = 3;
+  MemoryMetrics memory_metrics = 4;
+  MiscMetrics misc_metrics = 5;
+}
