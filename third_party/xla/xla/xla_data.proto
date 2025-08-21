@@ -1199,8 +1199,7 @@ message OriginalValueNodeProto {
 }
 
 message OriginalValueProto {
-  ShapeProto shape = 1;
-  repeated OriginalValueNodeProto leaves = 2;
+  repeated OriginalValueNodeProto leaves = 1;
 }
 
 message GemmPerfTableEntry {

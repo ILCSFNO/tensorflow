@@ -16,12 +16,16 @@ limitations under the License.
 #ifndef XLA_HLO_IR_HLO_ORIGINAL_VALUE_H_
 #define XLA_HLO_IR_HLO_ORIGINAL_VALUE_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
-#include "xla/shape_tree.h"
+#include "absl/functional/function_ref.h"
+#include "absl/strings/string_view.h"
 #include "xla/shape_util.h"
+#include "xla/tuple_tree.h"
+#include "xla/util.h"
 #include "xla/xla_data.pb.h"
 
 namespace xla {
@@ -56,15 +60,67 @@ struct OriginalArray {
 
 // The information of an HLO value produced by an instruction in an unoptimized
 // HLO module.
-class OriginalValue : public ShapeTree<std::optional<OriginalArray>> {
+class OriginalValue {
  public:
-  explicit OriginalValue(Shape shape) : ShapeTree(std::move(shape)) {}
+  OriginalValue() = default;
+  explicit OriginalValue(
+      TupleTree<std::optional<OriginalArray>>::Node&& root_node)
+      : tree_(std::move(root_node)) {}
+  explicit OriginalValue(TupleTree<std::optional<OriginalArray>>&& tree)
+      : tree_(std::move(tree)) {}
   std::string ToString() const;
   OriginalValueProto ToProto() const;
   static std::shared_ptr<OriginalValue> FromProto(
       const xla::OriginalValueProto& original_value_proto);
   static std::shared_ptr<OriginalValue> CreateFromInstruction(
       const HloInstruction* instruction, absl::string_view prefix = "");
+
+  const std::optional<OriginalArray>& element(ShapeIndexView index) const {
+    return tree_.element(index);
+  }
+  std::optional<OriginalArray>* mutable_element(ShapeIndexView index) {
+    return tree_.mutable_element(index);
+  }
+
+  auto elements() const { return tree_.leaves(); }
+  auto elements() { return tree_.leaves(); }
+
+  void CopySubtreeFrom(const OriginalValue& other, const ShapeIndex& src_index,
+                       const ShapeIndex& dst_index) {
+    tree_.CopySubtreeFrom(other.tree_, src_index, dst_index);
+  }
+
+  bool operator==(const OriginalValue& other) const {
+    auto this_leaves = elements();
+    auto other_leaves = other.elements();
+    auto this_it = this_leaves.begin();
+    auto other_it = other_leaves.begin();
+
+    while (this_it != this_leaves.end() && other_it != other_leaves.end()) {
+      if (this_it->first != other_it->first ||
+          this_it->second != other_it->second) {
+        return false;
+      }
+      ++this_it;
+      ++other_it;
+    }
+    return this_it == this_leaves.end() && other_it == other_leaves.end();
+  }
+
+  bool operator!=(const OriginalValue& other) const {
+    return !(*this == other);
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const OriginalValue& value) {
+    for (const auto& leaf : value.elements()) {
+      h = H::combine(std::move(h), leaf.first, leaf.second);
+    }
+    return h;
+  }
+
+ private:
+  TupleTree<std::optional<OriginalArray>> tree_;
 };
 
 struct OriginalValuePointer {
@@ -76,48 +132,21 @@ struct OriginalValuePointer {
 
   friend bool operator==(const OriginalValuePointer& lhs,
                          const OriginalValuePointer& rhs) {
-    // Returns if any original value is empty.
-    if (!lhs.original_value || !rhs.original_value) {
-      return !lhs.original_value == !rhs.original_value;
+    if (!lhs.original_value && !rhs.original_value) {
+      return true;
     }
-    // Returns if the original values have different shapes.
-    if (!xla::ShapeUtil::Compatible(lhs.original_value->shape(),
-                                    rhs.original_value->shape())) {
+    if (!lhs.original_value || !rhs.original_value) {
       return false;
     }
-    // Compares nodes.
-    for (auto& leaf : lhs.original_value->leaves()) {
-      xla::ShapeIndex index = leaf.first;
-      std::optional<const xla::OriginalArray> lhs_original_array = leaf.second;
-      std::optional<const xla::OriginalArray> rhs_original_array =
-          rhs.original_value->element(index);
-      if (!lhs_original_array.has_value() || !rhs_original_array.has_value() ||
-          *lhs_original_array != *rhs_original_array) {
-        return false;
-      }
-    }
-    return true;
+    return *lhs.original_value == *rhs.original_value;
   }
 
   template <typename H>
   friend H AbslHashValue(H h, const OriginalValuePointer& value) {
-    // Ignore layout information, which is added to shapes during the HLO
-    // transformation.
-    h = xla::Shape::template Hash<H, false /*kIsLayoutSensitive*/>(
-        std::move(h), value.original_value->shape());
-    value.original_value->ForEachElement(
-        [&h, &value](const xla::ShapeIndex& shape_index,
-                     const std::optional<xla::OriginalArray>& original_array) {
-          if (!value.original_value->IsLeaf(shape_index)) {
-            return;
-          }
-          if (!original_array) {
-            return;
-          }
-          h = H::combine(std::move(h), original_array->instruction_name,
-                         original_array->shape_index);
-        });
-    return std::move(h);
+    if (!value.original_value) {
+      return H::combine(std::move(h), 0);  // Hash for nullptr
+    }
+    return AbslHashValue(std::move(h), *value.original_value);
   }
 
   std::shared_ptr<xla::OriginalValue> original_value = nullptr;

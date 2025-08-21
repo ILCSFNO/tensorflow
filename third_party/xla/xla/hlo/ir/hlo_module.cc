@@ -1498,8 +1498,10 @@ void AddEntryToOriginalValueRecoveryTable(
     std::shared_ptr<OriginalValue> old_original_value,
     std::shared_ptr<OriginalValue> new_original_value,
     std::unique_ptr<HloModule> recovery_module) {
-  original_value_recovery_table[*old_original_value->leaf_begin()->second] = {
-      *new_original_value->leaf_begin()->second, std::move(recovery_module)};
+  original_value_recovery_table
+      [*old_original_value->elements().begin()->second] = {
+          *new_original_value->elements().begin()->second,
+          std::move(recovery_module)};
 }
 }  // namespace
 

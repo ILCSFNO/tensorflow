@@ -77,6 +77,7 @@ cc_library(
         "//xla:side_effect_util",
         "//xla:sort_json",
         "//xla:status_macros",
+        "//xla:tuple_tree",
         "//xla:types",
         "//xla:util",
         "//xla:window_util",
@@ -395,5 +396,19 @@ xla_cc_test(
         "//xla/tsl/lib/core:status_test_util",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+xla_cc_test(
+    name = "hlo_original_value_test",
+    srcs = ["hlo_original_value_test.cc"],
+    deps = [
+        ":hlo",
+        "//xla:shape_util",
+        "//xla:tuple_tree",
+        "//xla:xla_data_proto_cc",
+        "//xla/hlo/testlib:hlo_hardware_independent_test_base",
+        "@com_google_absl//absl/hash:hash_testing",
+        "@com_google_googletest//:gtest_main",
     ],
 )
