@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_BACKENDS_GPU_AUTOTUNER_BLOCK_LEVEL_EMITTER_H_
-#define XLA_BACKENDS_GPU_AUTOTUNER_BLOCK_LEVEL_EMITTER_H_
+#ifndef XLA_BACKENDS_GPU_AUTOTUNER_NATIVE_EMITTER_H_
+#define XLA_BACKENDS_GPU_AUTOTUNER_NATIVE_EMITTER_H_
 
 #include <memory>
 #include <vector>
@@ -32,44 +32,33 @@ limitations under the License.
 namespace xla {
 namespace gpu {
 
-// Codegen backend for the Triton block-level fusion emitter.
+// Codegen backend for XLA's native fusion emitters.
 //
-// This backend enables autotuning of Triton-based fusion computations at the
-// block level. It generates tiling configurations, applies them to
-// instructions,and prepares them for compilation using the Triton emitter.
-class BlockLevelEmitterBackend : public GpuCodegenBackend {
+// This backend enables us to autotune XLA's native emitters against other
+// backends.
+class NativeEmitterBackend : public GpuCodegenBackend {
  public:
-  explicit BlockLevelEmitterBackend(
+  explicit NativeEmitterBackend(
       stream_executor::StreamExecutor* absl_nonnull stream_executor,
       const DebugOptions* absl_nonnull debug_options,
-      Compiler* absl_nonnull compiler, bool use_default_config = false)
-      : GpuCodegenBackend("BlockLevelEmitter", stream_executor, debug_options,
-                          compiler),
-        use_default_config_(use_default_config) {}
+      Compiler* absl_nonnull compiler)
+      : GpuCodegenBackend("NativeEmitter", stream_executor, debug_options,
+                          compiler) {}
 
-  // Returns all supported block-level tiling configurations for the given
-  // instruction.
+  // Returns all supported configurations for the given instruction.
   absl::StatusOr<std::vector<std::unique_ptr<BackendConfig>>>
   GetSupportedConfigs(const HloInstruction& instr) override;
 
-  // Returns a default block-level configuration for the instruction.
+  // Returns a default configuration for the instruction.
   absl::StatusOr<std::unique_ptr<BackendConfig>> GetDefaultConfig(
       const HloInstruction& instr) override;
 
-  // Applies a given block-level fusion configuration to the instruction.
+  // Applies a given fusion config to the instruction.
   absl::Status ApplyConfig(HloInstruction& instr,
                            const BackendConfig& config) override;
-
-  // Determines whether the given HLO instruction is supported by this backend.
-  bool IsSupported(const HloInstruction& instr);
-
- private:
-  // If true, the backend will return a single default configuration in
-  // GetSupportedConfigs instead of generating all supported configurations.
-  bool use_default_config_;
 };
 
 }  // namespace gpu
 }  // namespace xla
 
-#endif  // XLA_BACKENDS_GPU_AUTOTUNER_BLOCK_LEVEL_EMITTER_H_
+#endif  // XLA_BACKENDS_GPU_AUTOTUNER_NATIVE_EMITTER_H_
