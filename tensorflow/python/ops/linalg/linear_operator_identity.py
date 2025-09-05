@@ -660,6 +660,9 @@ class LinearOperatorScaledIdentity(BaseLinearOperatorIdentity):
     Raises:
       ValueError:  If `num_rows` is determined statically to be non-scalar, or
         negative.
+      ValueError:  If `is_self_adjoint` is `False` with `multiplier` to be of
+        complex type.
+      ValueError:  If `is_square` is `False`.
     """
     parameters = dict(
         num_rows=num_rows,
